@@ -1,0 +1,40 @@
+# Python project, dependency, test, and lint configuration. Rename the project
+# and manage dependencies with `uv add`; do not edit the generated uv.lock.
+[project]
+name = "twynity-mcp-starter-template"
+version = "0.1.0"
+description = "A production-shaped FastMCP and MCP Apps starter template"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "cryptography>=50.0.1",
+    "fastmcp==3.4.5",
+    "httpx==0.28.1",
+    "pydantic-settings==2.14.2",
+    "pymongo>=4.18.2",
+    "python-dotenv==1.2.2",
+    "python-jose[cryptography]==3.5.0",
+    "starlette==1.3.1",
+    "uvicorn==0.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# Keep the starter's default checks focused and predictable. Projects can add
+# stricter rules as their conventions mature.
+select = ["E4", "E7", "E9", "F", "I"]

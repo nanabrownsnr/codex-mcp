@@ -1,0 +1,11 @@
+# Development-only files excluded from the production image build context.
+# Add local artifacts here, but keep source and dependency lockfiles available.
+.git
+.env
+.venv
+.pytest_cache
+**/__pycache__
+**/*.py[cod]
+app/ui/*/node_modules
+logs
+tests
