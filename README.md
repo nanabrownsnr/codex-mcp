@@ -58,13 +58,17 @@ verified identity pair, never user-provided strings.
 4. Copy `.env.example` to `.env` and set the account, license, usage, MongoDB,
    OpenAI, Docker, and workspace settings. `WORKSPACE_ROOT` must be an absolute
    path visible at the same location to both the MCP process and Docker daemon.
-5. Build the isolated executor image and start the MCP service:
+5. Build the isolated executor image:
 
    ```bash
    docker build -f Dockerfile.executor -t twynity-codex-executor:local .
    ```
 
+6. Build and start the MCP service with Docker Compose:
+
+   ```bash
    docker compose up --build -d
+   ```
 
    Compose mounts the Docker socket into the MCP service so it can create one
    executor container per Twyn. Restrict access to this MCP service because
