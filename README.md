@@ -30,20 +30,22 @@ extension instructions.
 
    Back up `ENCRYPTION_KEY` securely. Losing/changing it prevents decrypting
    existing connection secrets. Do not commit `.env`.
-3. Install and validate:
+3. Install dependencies, build the App bundle, and then run the checks. The
+   resource test intentionally verifies the compiled artifact, so the frontend
+   build must happen before pytest:
 
    ```bash
    uv sync --locked
-   uv run pytest -q
-   uv run ruff check app tests
-   ```
-4. Build the example UI and run the server:
-
-   ```bash
    cd app/ui/say_hello
    npm ci
    npm run build
    cd ../../..
+   uv run pytest -q
+   uv run ruff check app tests
+   ```
+4. Run the server:
+
+   ```bash
    uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
 

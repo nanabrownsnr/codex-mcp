@@ -16,8 +16,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # The resource integration test loads the compiled HTML bundle, so build
+      # the MCP App before running pytest.
+      - run: npm ci && npm run build
+        working-directory: app/ui/say_hello
       - run: uv sync --locked
       - run: uv run pytest -q
       - run: uv run ruff check app tests
-      - run: npm ci && npm run build
-        working-directory: app/ui/say_hello
