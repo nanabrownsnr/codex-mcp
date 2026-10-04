@@ -14,7 +14,7 @@ load_dotenv()
 
 # Put your MCP name here. Keeping this value in one place makes the service
 # identity, display title, and log filenames easy to customise.
-mcp_name = ""
+mcp_name = "codex-harness"
 
 
 def configured_mcp_name() -> str:
@@ -52,7 +52,7 @@ def configure_logging():
 
 class Settings(BaseSettings):
     SERVICE_ID: str = f"{configured_mcp_name()}_mcp"
-    APP_TITLE: str = f"{configured_mcp_name().title()} MCP"
+    APP_TITLE: str = "Twynity Codex Harness MCP"
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")  # development | staging | production
     API_V1_STR: str = "/api/v1"
@@ -65,6 +65,17 @@ class Settings(BaseSettings):
     MONGODB_URI: str
     DATABASE_NAME: str = "twynity_mcp"
     ENCRYPTION_KEY: str
+
+    # OpenAI Agents API and the self-hosted Codex executor.
+    OPENAI_API_KEY: str = ""
+    OPENAI_EXECUTOR_API_KEY: str = ""
+    CODEX_MODEL: str = "gpt-6-astra"
+    EXECUTOR_IMAGE: str = "twynity-codex-executor:local"
+    EXECUTOR_NETWORK: str = "bridge"
+    EXECUTOR_MEMORY_LIMIT: str = "8g"
+    WORKSPACE_ROOT: str = "/srv/twynity-workspaces"
+    AGENT_TASK_TIMEOUT_SECONDS: int = 3600
+    AGENT_LOCK_SECONDS: int = 3900
 
     # Usage reporting
     USAGE_REPORT_ENDPOINT: str

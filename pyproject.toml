@@ -1,15 +1,17 @@
 # Python project, dependency, test, and lint configuration. Rename the project
 # and manage dependencies with `uv add`; do not edit the generated uv.lock.
 [project]
-name = "twynity-mcp-starter-template"
+name = "twynity-codex-harness-mcp"
 version = "0.1.0"
-description = "A production-shaped FastMCP and MCP Apps starter template"
+description = "Twynity MCP for OpenAI-managed Codex sessions and GitHub branch publishing"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "cryptography>=50.0.1",
+    "docker>=7.1.0",
     "fastmcp==3.4.5",
     "httpx==0.28.1",
+    "openai>=2.0.0",
     "pydantic-settings==2.14.2",
     "pymongo>=4.18.2",
     "python-dotenv==1.2.2",

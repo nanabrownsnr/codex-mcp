@@ -1,0 +1,29 @@
+services:
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+
+  harness-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_GID: ${DOCKER_GID:-999}
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    env_file:
+      - .env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      WORKSPACE_ROOT: ${WORKSPACE_HOST_ROOT:-/srv/twynity-workspaces}
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${WORKSPACE_HOST_ROOT:-/srv/twynity-workspaces}:${WORKSPACE_HOST_ROOT:-/srv/twynity-workspaces}
+
+volumes:
+  mongo-data:

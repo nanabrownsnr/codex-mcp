@@ -70,13 +70,19 @@ class ConnectionStore:
         """Return safe display fields only, excluding all credentials."""
         document = await self.collection.find_one(
             {"user_id": user_id, "persona_id": persona_id},
-            {"values.name": 1, "values.base_url": 1, "created": 1, "modified": 1},
+            {
+                "values.project_name": 1,
+                "values.repo_url": 1,
+                "values.default_branch": 1,
+                "created": 1,
+                "modified": 1,
+            },
         )
         if not document:
             return None
         values = document.get("values", {})
         safe = {}
-        for key in ("name", "base_url"):
+        for key in ("project_name", "repo_url", "default_branch"):
             encrypted_value = values.get(key)
             if encrypted_value:
                 safe[key] = self.cipher.decrypt(encrypted_value.encode("ascii")).decode("utf-8")

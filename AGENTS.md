@@ -1,46 +1,45 @@
-# Instructions for agents working from this template
+# Instructions for agents working in this repository
 
-This is a reusable Twynity MCP starter. Replace the sample greeting feature
-with the target integration while preserving the shared auth, connection,
-secrets, and test contracts.
+This service is a Twynity MCP that runs the OpenAI-managed Codex harness with
+isolated self-hosted executor containers. Preserve the Twynity identity and
+credential boundaries in every change.
 
-## Identity and credentials
+## Identity and credential rules
 
-- Verify bearer JWTs with the configured account-service JWKS. Custom HTTP
-  routes must call the explicit verifier in `app/auth.py`; FastMCP's verifier
-  alone does not protect custom routes.
-- Resolve user identity from verified token claims (`id`, falling back to
-  `sub`) and active project/persona from the configured `Persona-Id` request
-  header. Never accept a persona ID only as an untrusted tool argument/body.
-- Every MongoDB read/write must use the exact `(user_id, persona_id)` pair.
-  Never fall back to user-only lookup. The compound unique index and upsert
-  pattern are deliberate.
-- Encrypt connector secrets before storage. Never return/log secrets or place
-  them in tool content, structured UI data, or configuration GET responses.
-- Keep persona identity separate from connection display name and upstream URL.
-- MCP App `app.callServerTool()` cannot attach arbitrary headers. Document and
-  test that the Twynity host forwards `Persona-Id` (and bearer auth) for App
-  calls; do not ask the UI to collect the persona ID.
+- MCP tool calls require a verified Twynity JWT and the `Persona-Id` header.
+- Resolve identity only from verified JWT claims (`id`, then `sub`) and the
+  trusted request header. Never accept user/persona IDs as tool arguments.
+- Every project/session read and write uses the exact `(user_id, persona_id)`
+  pair. Never fall back to a user-only query.
+- GitHub tokens are encrypted in MongoDB. They may be decrypted only by
+  checkout and publishing code. Never pass them to OpenAI, the executor, tool
+  output, or logs.
+- `OPENAI_API_KEY` stays in the MCP service. The executor receives only the
+  restricted `OPENAI_EXECUTOR_API_KEY`, from the same OpenAI project.
+- Treat project labels as display data. Use an opaque hash for paths/container
+  names and never interpolate labels into filesystem paths or shell commands.
+- Keep repository URLs canonical HTTPS GitHub URLs without embedded credentials.
+- MCP Apps requests must receive the forwarded bearer token and `Persona-Id`;
+  do not ask the UI to collect identity headers.
 
-## Extending the starter
+## Runtime boundaries
 
-- Put one logical tool module per file under `app/tools/`, register it in
-  `app/main.py`, and describe when/how an LLM should call it.
-- For credentials in a tool, use `await app.tools.connection.get_current_connection()`
-  so the call resolves the trusted user/persona context.
-- For UI-enabled tools, add a matching `app/ui/<view>/` resource and keep the
-  `structured_content` contract in sync with backend tests and frontend code.
-- Adapt `/api/v1/schema` and configuration validation for the upstream service
-  while retaining encrypted storage and safe metadata-only GET responses.
-- Add tests for successes, invalid inputs, missing/invalid auth, missing
-  persona, cross-persona isolation, encryption, and upstream failures.
-- Preserve Twynity manifest, health, license, usage-reporting, and CORS behavior
-  unless the target deployment contract explicitly differs.
+- `app/tools/` contains user-facing MCP tools; register them in `app/main.py`.
+- `app/codex_runtime.py` coordinates OpenAI sessions and publishing.
+- `app/executor.py` starts isolated containers. Do not mount Docker access,
+  server secrets, or other users' workspace paths inside an executor.
+- `app/workspaces.py` owns repository checkout and workspace paths.
+- `app/publisher.py` pushes only the generated work branch using an ephemeral
+  askpass helper. Keep the remote URL credential-free and disable repo hooks
+  during the push.
+- Preserve `app/twynity.py` manifest, schema, configuration, status, and health
+  routes, and keep safe configuration responses free of secret values.
 
-## Before committing
+## Before changing the external contract
 
-- Update `README.md`, this guide, and `.env.example` for the integration.
-- Run `uv run pytest -q` and `uv run ruff check app tests`.
-- Build each UI and Docker image; verify deployment-specific settings.
-- Check `git diff --check` and ensure `.env`, logs, generated bundles, and
-  credentials are not committed.
+- Update `README.md`, `/api/v1/schema`, the Twynity connection routes, and the
+  tool docstrings together.
+- Keep session state and credentials scoped to the same authenticated persona.
+- Document required OpenAI permission scopes, executor image requirements,
+  Docker socket access, and workspace persistence.
+- Do not commit `.env`, tokens, generated UI bundles, logs, or workspace data.

@@ -1,10 +1,11 @@
-"""Twynity discovery and project-scoped external-connection routes.
+"""Twynity discovery and project-scoped Codex connection routes.
 
 The active project comes only from the authenticated ``Persona-Id`` request
 header. These routes explicitly verify JWTs because FastMCP's auth provider
 does not automatically secure Starlette custom routes.
 """
 
+import httpx
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -12,6 +13,7 @@ from starlette.responses import JSONResponse
 from app.auth import get_identity
 from app.config import settings
 from app.connection_store import get_active_store
+from app.workspaces import validate_branch_name, validate_github_repo_url
 
 
 def register_routes(mcp):
@@ -21,21 +23,21 @@ def register_routes(mcp):
             "name": settings.APP_TITLE,
             "base_url": f"{settings.PUBLIC_URL.rstrip('/')}/mcp",
             "version": settings.APP_VERSION,
-            "external_connections": {"project": {"name": "mcp_configuration"}},
+            "external_connections": {"project": {"name": "codex_harness_configuration"}},
         })
 
     @mcp.custom_route("/api/v1/schema", methods=["GET"])
     async def configuration_schema(request: Request) -> JSONResponse:
         return JSONResponse({
-            "name": "mcp_configuration",
+            "name": "codex_harness_configuration",
             "endpoint": "/api/v1/configuration",
             "method": "POST",
             # Rename/extend these example fields for the upstream service.
             "schema": {
-                "name": "string",
-                "base_url": "string",
-                "api_key": "string",
-                "api_secret": "string",
+                "project_name": "string",
+                "repo_url": "string",
+                "default_branch": "string (optional; uses GitHub default)",
+                "github_token": "string (fine-grained token with repository contents read/write)",
             },
         })
 
@@ -50,19 +52,79 @@ def register_routes(mcp):
             payload = await request.json()
         except (ValueError, UnicodeDecodeError):
             return JSONResponse({"detail": "Request body must be valid JSON"}, status_code=400)
-        required = ("name", "base_url", "api_key", "api_secret")
-        invalid = [key for key in required if not isinstance(payload, dict) or not str(payload.get(key, "")).strip()]
-        if invalid:
+        if not isinstance(payload, dict):
             return JSONResponse(
-                {"detail": {"missing_or_invalid_fields": invalid}}, status_code=422
+                {"detail": "Configuration must be a JSON object"}, status_code=422
             )
         store = get_active_store()
         if store is None:
             raise HTTPException(status_code=503, detail="Connection storage is not available")
+        existing = await store.get(identity.user_id, identity.persona_id)
+        project_name = str(payload.get("project_name", "")).strip()
+        token = str(payload.get("github_token", "")).strip()
+        if not project_name or len(project_name) > 80:
+            return JSONResponse(
+                {"detail": {"invalid_fields": ["project_name"]}}, status_code=422
+            )
+        try:
+            repo_url = validate_github_repo_url(str(payload.get("repo_url", "")))
+            requested_branch = str(payload.get("default_branch", "")).strip()
+            default_branch = validate_branch_name(requested_branch) if requested_branch else ""
+        except ValueError as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
+        if existing and existing.get("repo_url") != repo_url:
+            return JSONResponse(
+                {
+                    "detail": (
+                        "A Twyn is bound to one repository in version one. "
+                        "Create another Twyn to connect a different repository."
+                    )
+                },
+                status_code=409,
+            )
+        if not token and existing:
+            token = str(existing.get("github_token", ""))
+        if not token:
+            return JSONResponse(
+                {"detail": {"missing_or_invalid_fields": ["github_token"]}},
+                status_code=422,
+            )
+
+        parsed_repo = repo_url.removeprefix("https://github.com/").removesuffix(".git")
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.get(
+                    f"https://api.github.com/repos/{parsed_repo}",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github+json",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                    },
+                )
+            if response.status_code != 200:
+                return JSONResponse(
+                    {"detail": "GitHub could not access that repository with the supplied token"},
+                    status_code=422,
+                )
+            if not default_branch:
+                try:
+                    default_branch = validate_branch_name(
+                        str(response.json().get("default_branch", ""))
+                    )
+                except ValueError as exc:
+                    return JSONResponse({"detail": "GitHub did not return a valid default branch"}, status_code=422)
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail="Could not validate GitHub access") from exc
+
         await store.save(
             identity.user_id,
             identity.persona_id,
-            {key: str(payload[key]).strip() for key in required},
+            {
+                "project_name": project_name,
+                "repo_url": repo_url,
+                "default_branch": default_branch,
+                "github_token": token,
+            },
         )
         return JSONResponse({"configured": True})
 
